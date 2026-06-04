@@ -89,10 +89,7 @@ export default function Login() {
         </form>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          Super Administrateur ?{" "}
-          <a href="/super-admin" className="text-emerald-600 hover:underline">
-            Accès plateforme
-          </a>
+
         </p>
       </div>
     </div>
