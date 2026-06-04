@@ -147,15 +147,16 @@ export default function Products() {
         toast.success("Produit modifié");
       } else {
         const created = await createProduct(payload);
-        if (showSupplierSection && created.id && Number(form.quantity) > 0) {
+        // Toujours créer une entrée de stock si quantité > 0
+        if (created.id && Number(form.quantity) > 0) {
           await addStockEntry({
             productId: created.id,
             quantity: Number(form.quantity),
             note: "Stock initial",
-            supplierId: supplierForm.supplierId || undefined,
-            unitCost: supplierForm.unitCost || undefined,
-            paidAmount: supplierForm.paidAmount || undefined,
-            createDebt: supplierForm.createDebt,
+            supplierId: showSupplierSection && supplierForm.supplierId ? supplierForm.supplierId : undefined,
+            unitCost: showSupplierSection ? supplierForm.unitCost || undefined : undefined,
+            paidAmount: showSupplierSection ? supplierForm.paidAmount || undefined : undefined,
+            createDebt: showSupplierSection ? supplierForm.createDebt : false,
           } as any);
         }
         toast.success("Produit créé");
@@ -207,7 +208,7 @@ export default function Products() {
 
       {/* Barre de recherche */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-50">
+        <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Rechercher un produit..."
             value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -434,7 +435,7 @@ export default function Products() {
                 <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
                 <textarea value={form.description}
                   onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500 min-h-20"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500 min-h-[80px]"
                   placeholder="Description optionnelle..." />
               </div>
             </div>

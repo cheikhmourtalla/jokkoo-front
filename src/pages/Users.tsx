@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, X } from "lucide-react";
+import { Plus, X, UserCog } from "lucide-react";
 import { getUsers, createUser, updateUser, deleteUser } from "../services/index";
 import type { User } from "../types/index";
-import { getStoredUser } from "../types/auth";
 
 const emptyForm = { name: "", email: "", password: "", role: "EMPLOYEE" };
+
+const roleLabel: Record<string, string> = {
+  ADMIN: "Administrateur",
+  EMPLOYEE: "Employé",
+};
+const roleBadge: Record<string, string> = {
+  ADMIN: "bg-purple-100 text-purple-700",
+  EMPLOYEE: "bg-blue-100 text-blue-700",
+};
 
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
@@ -14,13 +22,10 @@ export default function Users() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
-  const currentUser = getStoredUser();
 
   const fetchUsers = async () => {
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch { toast.error("Erreur chargement utilisateurs"); }
+    try { setUsers(await getUsers()); }
+    catch { toast.error("Erreur chargement utilisateurs"); }
     finally { setLoading(false); }
   };
 
@@ -33,46 +38,31 @@ export default function Users() {
     setSubmitting(true);
     try {
       if (editingId) {
-        const data: any = { name: form.name, role: form.role };
-        if (form.password) data.password = form.password;
-        await updateUser(editingId, data);
+        await updateUser(editingId, { name: form.name, role: form.role, ...(form.password ? { password: form.password } : {}) });
         toast.success("Utilisateur modifié");
       } else {
         await createUser(form);
         toast.success("Utilisateur créé");
       }
-      setShowForm(false);
-      setEditingId(null);
-      setForm(emptyForm);
+      setShowForm(false); setEditingId(null); setForm(emptyForm);
       await fetchUsers();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Erreur");
     } finally { setSubmitting(false); }
   };
 
-  const handleToggleActive = async (user: User) => {
-    try {
-      await updateUser(user.id, { isActive: !user.isActive });
-      toast.success(user.isActive ? "Compte désactivé" : "Compte activé");
-      await fetchUsers();
-    } catch { toast.error("Erreur"); }
-  };
-
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer cet utilisateur ?")) return;
-    try {
-      await deleteUser(id);
-      toast.success("Utilisateur supprimé");
-      await fetchUsers();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Erreur suppression");
-    }
+    try { await deleteUser(id); toast.success("Utilisateur supprimé"); await fetchUsers(); }
+    catch (error: any) { toast.error(error?.response?.data?.message || "Erreur"); }
   };
 
   if (loading) return <div className="rounded-2xl bg-white p-8 text-center text-gray-400">Chargement...</div>;
 
   return (
     <section className="space-y-6">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{users.length} utilisateur(s)</p>
         <button onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }}
@@ -81,102 +71,110 @@ export default function Users() {
         </button>
       </div>
 
+      {/* Formulaire */}
       {showForm && (
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">{editingId ? "Modifier" : "Nouvel"} utilisateur</h3>
-            <button onClick={() => setShowForm(false)}><X size={20} className="text-gray-400" /></button>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-lg font-bold text-slate-900">
+              {editingId ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
+            </h3>
+            <button onClick={() => { setShowForm(false); setEditingId(null); }}>
+              <X size={20} className="text-gray-400" />
+            </button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Nom *</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Nom complet *</label>
               <input type="text" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="Prénom Nom" />
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"
+                placeholder="Ex: Fatou Diallo" required />
             </div>
-            {!editingId && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email *</label>
-                <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="email@boutique.com" />
-              </div>
-            )}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{editingId ? "Nouveau mot de passe" : "Mot de passe *"}</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email *</label>
+              <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                disabled={!!editingId}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 disabled:bg-gray-50 disabled:text-gray-400"
+                placeholder="email@boutique.com" required={!editingId} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Mot de passe {editingId ? "(laisser vide pour ne pas changer)" : "*"}
+              </label>
               <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="••••••••" />
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"
+                placeholder="••••••••" required={!editingId} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Rôle</label>
               <select value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500">
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-emerald-500">
                 <option value="EMPLOYEE">Employé</option>
                 <option value="ADMIN">Administrateur</option>
               </select>
             </div>
             <div className="flex gap-3 sm:col-span-2">
-              <button type="submit" disabled={submitting} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
+              <button type="submit" disabled={submitting}
+                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 transition">
                 {submitting ? "Enregistrement..." : editingId ? "Modifier" : "Créer"}
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Annuler</button>
+              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}
+                className="rounded-xl border border-gray-300 px-6 py-3 text-sm text-gray-700 hover:bg-gray-50">
+                Annuler
+              </button>
             </div>
           </form>
         </div>
       )}
 
+      {/* Liste utilisateurs */}
       {!users.length ? (
-        <div className="rounded-2xl bg-white p-8 text-center text-gray-400">Aucun utilisateur trouvé.</div>
+        <div className="rounded-2xl bg-white p-8 text-center text-gray-400">
+          <UserCog size={40} className="mx-auto mb-3 text-gray-300" />
+          <p>Aucun utilisateur enregistré.</p>
+        </div>
       ) : (
-        <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b bg-slate-50 text-gray-500">
-                <th className="px-5 py-3">Nom</th>
-                <th className="px-5 py-3">Email</th>
-                <th className="px-5 py-3">Rôle</th>
-                <th className="px-5 py-3">Statut</th>
-                <th className="px-5 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-slate-900">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      {user.name}
-                      {user.id === currentUser?.id && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">Vous</span>}
+        <div className="space-y-3">
+          {users.map((user) => (
+            <div key={user.id} className="rounded-2xl bg-white px-5 py-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* Avatar + infos */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900 truncate">{user.name}</p>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${roleBadge[user.role]}`}>
+                        {roleLabel[user.role]}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-5 py-3 text-gray-600">{user.email}</td>
-                  <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${user.role === "ADMIN" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"}`}>
-                      {user.role === "ADMIN" ? "Admin" : "Employé"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${user.isActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                      {user.isActive ? "Actif" : "Inactif"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    {user.id !== currentUser?.id && (
-                      <div className="flex gap-2">
-                        <button onClick={() => { setForm({ name: user.name, email: user.email, password: "", role: user.role }); setEditingId(user.id); setShowForm(true); }}
-                          className="rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50">Modifier</button>
-                        <button onClick={() => handleToggleActive(user)}
-                          className={`rounded-lg border px-3 py-1 text-xs ${user.isActive ? "border-yellow-200 text-yellow-600 hover:bg-yellow-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}>
-                          {user.isActive ? "Désactiver" : "Activer"}
-                        </button>
-                        <button onClick={() => handleDelete(user.id)} className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50">Supprimer</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Membre depuis {new Date(user.createdAt).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex shrink-0 gap-2">
+                  <button onClick={() => {
+                    setForm({ name: user.name, email: user.email, password: "", role: user.role });
+                    setEditingId(user.id);
+                    setShowForm(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                    className="rounded-xl border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                    Modifier
+                  </button>
+                  <button onClick={() => handleDelete(user.id)}
+                    className="rounded-xl border border-red-200 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </section>
