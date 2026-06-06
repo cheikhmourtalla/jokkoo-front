@@ -326,7 +326,7 @@ export default function Sales() {
             </div>
 
             {/* Grille produits cliquables */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 max-h-64 overflow-y-auto pr-1">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 max-h-56 overflow-y-auto pr-1">
               {products
                 .filter((p) => p.quantity > 0)
                 .filter((p) => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))
@@ -335,27 +335,31 @@ export default function Sales() {
                   return (
                     <div key={p.id}
                       onClick={() => handleProductSelect(p.id)}
-                      className={`relative cursor-pointer rounded-xl border-2 p-2 transition ${
+                      className={`relative cursor-pointer rounded-xl border-2 overflow-hidden transition ${
                         isSelected
-                          ? "border-emerald-500 bg-emerald-50"
-                          : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50"
+                          ? "border-emerald-500 ring-2 ring-emerald-200"
+                          : "border-gray-200 hover:border-emerald-300"
                       }`}>
-                      {/* Image */}
-                      <div className="mb-2 h-16 w-full overflow-hidden rounded-lg bg-slate-100">
+                      {/* Image fixe */}
+                      <div className="h-20 w-full bg-slate-100 overflow-hidden">
                         {p.imageUrl ? (
                           <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-xl font-bold text-slate-300">
+                          <div className="flex h-full items-center justify-center text-2xl font-bold text-slate-300">
                             {p.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-semibold text-slate-800 truncate">{p.name}</p>
-                      <p className="text-xs text-emerald-600 font-medium">{p.salePrice.toLocaleString("fr-FR")} F</p>
-                      <p className="text-xs text-gray-400">Stock: {p.quantity}</p>
+                      {/* Infos sous l'image */}
+                      <div className={`px-2 py-1.5 ${isSelected ? "bg-emerald-50" : "bg-white"}`}>
+                        <p className="text-xs font-semibold text-slate-800 truncate leading-tight">{p.name}</p>
+                        <p className="text-xs text-emerald-600 font-bold">{p.salePrice.toLocaleString("fr-FR")} F</p>
+                        <p className="text-xs text-gray-400">{p.quantity} en stock</p>
+                      </div>
+                      {/* Badge sélectionné */}
                       {isSelected && (
-                        <div className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                          <span className="text-white text-xs">✓</span>
+                        <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center shadow">
+                          <span className="text-white text-xs font-bold">✓</span>
                         </div>
                       )}
                     </div>
