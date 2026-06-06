@@ -128,10 +128,12 @@ export default function Products() {
 
     setSubmitting(true);
     try {
+      // Pour la création : on n'envoie PAS quantity dans le payload
+      // Le stock sera géré uniquement par addStockEntry
       const payload = {
         ...form,
         categoryId: form.categoryId ? Number(form.categoryId) : null,
-        quantity: Number(form.quantity),
+        quantity: editingId ? Number(form.quantity) : 0, // 0 à la création
         purchasePrice: Number(form.purchasePrice),
         salePrice: Number(form.salePrice),
         alertThreshold: Number(form.alertThreshold),
