@@ -49,6 +49,8 @@ export default function Sales() {
   // Facture
   const [invoiceSale, setInvoiceSale] = useState<Sale | null>(null);
   const [printMenuFor, setPrintMenuFor] = useState<number | null>(null);
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<number | "">("");
 
   const checkCash = async () => {
     try {
@@ -64,7 +66,7 @@ export default function Sales() {
     try {
       const [salesRes, prods, cls] = await Promise.all([
         getSales({ status: statusFilter || undefined, page, limit: 5 }),
-        getProducts({ limit: 100 }),
+        getProducts({ limit: 200 }),
         getClients(),
       ]);
       setSales(salesRes.data);
@@ -265,7 +267,7 @@ export default function Sales() {
 
       {/* Actions + filtres */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-45">
+        <div className="relative flex-1 min-w-[180px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="N° facture, client..."
             value={search} onChange={(e) => setSearch(e.target.value)}
@@ -310,51 +312,95 @@ export default function Sales() {
             <button onClick={() => { setShowForm(false); setCart([]); }}><X size={20} className="text-gray-400" /></button>
           </div>
 
-          {/* Ajout article au panier */}
-          <div className="rounded-xl bg-slate-50 p-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-700">Ajouter un article</p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs text-gray-600">Produit</label>
-                <select value={selectedProductId} onChange={(e) => handleProductSelect(Number(e.target.value))}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500">
-                  <option value={0}>Sélectionner...</option>
-                  {products.filter((p) => p.quantity > 0).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} (stock: {p.quantity})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-gray-600">Prix appliqué (FCFA)</label>
-                <input type="number" min={0} value={selectedPrice} onChange={(e) => setSelectedPrice(Number(e.target.value))}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-emerald-500 ${
-                    priceTier === "wholesale" ? "border-purple-400 bg-purple-50"
-                    : priceTier === "semiWholesale" ? "border-blue-400 bg-blue-50"
-                    : "border-gray-300"
-                  }`} />
-                {priceSuggestion && (
-                  <p className={`mt-1 text-xs font-medium ${
-                    priceTier === "wholesale" ? "text-purple-600"
-                    : priceTier === "semiWholesale" ? "text-blue-600"
-                    : "text-gray-400"
-                  }`}>
-                    ✓ {priceSuggestion}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-gray-600">Quantité</label>
-                <div className="flex gap-2">
-                  <input type="number" min={1} value={selectedQty}
-                    onChange={(e) => handleQtyChange(Number(e.target.value))}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500" />
-                  <button onClick={handleAddToCart} type="button"
-                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 whitespace-nowrap">
-                    + Ajouter
-                  </button>
-                </div>
+          {/* Grille de produits */}
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-700">Sélectionner les produits</p>
+
+            {/* Recherche + filtre catégorie */}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Rechercher un produit..."
+                  value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 py-2 pl-8 pr-3 text-sm outline-none focus:border-emerald-500" />
               </div>
             </div>
+
+            {/* Grille produits cliquables */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 max-h-64 overflow-y-auto pr-1">
+              {products
+                .filter((p) => p.quantity > 0)
+                .filter((p) => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                .map((p) => {
+                  const isSelected = selectedProductId === p.id;
+                  return (
+                    <div key={p.id}
+                      onClick={() => handleProductSelect(p.id)}
+                      className={`relative cursor-pointer rounded-xl border-2 p-2 transition ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50"
+                          : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50"
+                      }`}>
+                      {/* Image */}
+                      <div className="mb-2 h-16 w-full overflow-hidden rounded-lg bg-slate-100">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xl font-bold text-slate-300">
+                            {p.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800 truncate">{p.name}</p>
+                      <p className="text-xs text-emerald-600 font-medium">{p.salePrice.toLocaleString("fr-FR")} F</p>
+                      <p className="text-xs text-gray-400">Stock: {p.quantity}</p>
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Quantité + Prix si produit sélectionné */}
+            {selectedProductId > 0 && (
+              <div className="rounded-xl bg-slate-50 p-3 space-y-3 border border-emerald-200">
+                <p className="text-xs font-semibold text-emerald-700">
+                  {products.find((p) => p.id === selectedProductId)?.name}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-gray-600">Quantité</label>
+                    <input type="number" min={1} value={selectedQty}
+                      onChange={(e) => handleQtyChange(Number(e.target.value))}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-gray-600">Prix (FCFA)</label>
+                    <input type="number" min={0} value={selectedPrice}
+                      onChange={(e) => setSelectedPrice(Number(e.target.value))}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-emerald-500 ${
+                        priceTier === "wholesale" ? "border-purple-400 bg-purple-50"
+                        : priceTier === "semiWholesale" ? "border-blue-400 bg-blue-50"
+                        : "border-gray-300"
+                      }`} />
+                    {priceSuggestion && (
+                      <p className={`mt-1 text-xs font-medium ${
+                        priceTier === "wholesale" ? "text-purple-600"
+                        : priceTier === "semiWholesale" ? "text-blue-600"
+                        : "text-gray-400"
+                      }`}>✓ {priceSuggestion}</p>
+                    )}
+                  </div>
+                </div>
+                <button onClick={handleAddToCart} type="button"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition">
+                  + Ajouter au panier
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Panier */}
