@@ -50,7 +50,6 @@ export default function Sales() {
   const [invoiceSale, setInvoiceSale] = useState<Sale | null>(null);
   const [printMenuFor, setPrintMenuFor] = useState<number | null>(null);
   const [productSearch, setProductSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<number | "">("");
 
   const checkCash = async () => {
     try {
