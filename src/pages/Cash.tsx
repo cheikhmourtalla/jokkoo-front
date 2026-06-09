@@ -4,7 +4,7 @@ import { Wallet, TrendingUp, TrendingDown, X, ChevronDown, ChevronUp } from "luc
 import { getCurrentCash, openCash, closeCash, addCashTransaction, getCashHistory, getCashById } from "../services/index";
 import { exportCashReportPDF } from "../utils/exportPDF";
 import { Download } from "lucide-react";
-import PaymentMethodSelect, { PAYMENT_METHOD_LABELS } from "../components/Paymentmethodselect";
+import PaymentMethodSelect, { PAYMENT_METHOD_LABELS } from "../components/PaymentMethodSelect";
 import type { CashRegister, CashTransaction } from "../types/index";
 import { getStoredUser } from "../types/auth";
 
@@ -67,17 +67,15 @@ export default function Cash() {
     } finally { setSubmitting(false); }
   };
 
+  const [closureSummary, setClosureSummary] = useState<any>(null);
+
   const handleCloseCash = async () => {
     if (!cashState.cashRegister) return;
-    if (!confirm("Fermer la caisse ? Un historique journalier sera enregistré.")) return;
+    if (!confirm("Fermer la caisse ? Un rapport de clôture sera généré.")) return;
     try {
       const res = await closeCash(cashState.cashRegister.id);
-      toast.success("Caisse fermée — historique enregistré");
-      // Afficher le résumé
-      if (res.summary) {
-        const s = res.summary;
-        toast(`📊 Résumé journée : Ouverture ${fmt(s.openingAmount)} | +${fmt(s.totalIn)} | -${fmt(s.totalOut)} | Clôture ${fmt(s.closingAmount)}`, { duration: 6000, icon: "📋" });
-      }
+      toast.success("Caisse fermée ✅");
+      if (res.summary) setClosureSummary(res.summary);
       await fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Erreur");
@@ -119,6 +117,72 @@ export default function Cash() {
 
   return (
     <section className="space-y-6">
+
+      {/* Rapport de clôture */}
+      {closureSummary && (
+        <div className="rounded-2xl bg-white p-6 shadow-sm border-l-4 border-emerald-500">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-900">📊 Rapport de clôture</h3>
+            <button onClick={() => setClosureSummary(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">{closureSummary.date} • Ouvert à {new Date(closureSummary.openedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — Fermé à {new Date(closureSummary.closedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+
+          {/* Résumé global */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-5">
+            {[
+              { label: "Ouverture", value: fmt(closureSummary.openingAmount), color: "bg-slate-50 text-slate-700" },
+              { label: "Entrées", value: fmt(closureSummary.totalIn), color: "bg-emerald-50 text-emerald-700" },
+              { label: "Sorties", value: fmt(closureSummary.totalOut), color: "bg-red-50 text-red-700" },
+              { label: "Clôture", value: fmt(closureSummary.closingAmount), color: "bg-slate-900 text-white" },
+            ].map((s) => (
+              <div key={s.label} className={`rounded-xl p-3 text-center ${s.color}`}>
+                <p className="text-xs opacity-70 mb-1">{s.label}</p>
+                <p className="font-bold text-sm">{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Résumé par mode de paiement */}
+          {closureSummary.paymentMethodSummary?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase text-gray-400 mb-3">Répartition par mode de paiement</p>
+              <div className="space-y-2">
+                {closureSummary.paymentMethodSummary.map((m: any) => (
+                  <div key={m.method} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{
+                        m.method === "CASH" ? "💵" :
+                        m.method === "WAVE" ? "🔵" :
+                        m.method === "ORANGE_MONEY" ? "🟠" :
+                        m.method === "FREE_MONEY" ? "🟣" :
+                        m.method === "BANK" ? "🏦" : "📱"
+                      }</span>
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{m.label}</p>
+                        <p className="text-xs text-gray-400">
+                          +{fmt(m.totalIn)} entré • -{fmt(m.totalOut)} sorti
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-bold ${m.net >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                      {m.net >= 0 ? "+" : ""}{fmt(m.net)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* Total */}
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-white">
+                <span className="text-sm font-semibold">Total encaissé net</span>
+                <span className="font-bold">{fmt(closureSummary.totalIn - closureSummary.totalOut)}</span>
+              </div>
+            </div>
+          )}
+
+          <p className="mt-4 text-xs text-gray-400 text-center">
+            {closureSummary.transactionCount} transaction(s) • Géré par {closureSummary.openedBy}
+          </p>
+        </div>
+      )}
 
       {/* ── Caisse fermée ─────────────────────────────── */}
       {!cashState.open ? (
