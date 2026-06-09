@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback, } from "react";
+import { useEffect, useState, useCallback } from "react";
 import toast from "react-hot-toast";
 import { Search, Printer, X, CreditCard, Filter } from "lucide-react";
 import { getInvoices, addInvoicePayment, getCurrentCash } from "../services/index";
+import PaymentMethodSelect from "../components/Paymentmethodselect";
 import { printInvoice as doPrint } from "../utils/printInvoice";
 import type { Sale } from "../types/index";
 import { getStoredUser } from "../types/auth";
@@ -38,6 +39,7 @@ export default function Invoices() {
   const [payingInvoice, setPayingInvoice] = useState<Sale | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [payNote, setPayNote] = useState("");
+  const [payMethod, setPayMethod] = useState("CASH");
   const [paySubmitting, setPaySubmitting] = useState(false);
 
   // Détail
@@ -98,11 +100,12 @@ export default function Invoices() {
     }
     setPaySubmitting(true);
     try {
-      await addInvoicePayment(payingId, Number(payAmount), payNote || undefined);
+      await addInvoicePayment(payingId, Number(payAmount), payNote || undefined, payMethod);
       toast.success("Paiement enregistré — caisse mise à jour");
       setPayingId(null);
       setPayingInvoice(null);
       setPayAmount("");
+      setPayMethod("CASH");
       await fetchInvoices();
       if (detailInvoice?.id === payingId) {
         const res = await getInvoices({ search: String(payingId), page: 1, limit: 1 });
@@ -156,7 +159,7 @@ export default function Invoices() {
       {/* Barre de recherche */}
       <div className="rounded-2xl bg-white p-4 shadow-sm space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-50">
+          <div className="relative flex-1 min-w-[200px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -225,6 +228,10 @@ export default function Invoices() {
               <input type="number" min={1} max={payingInvoice.remaining} value={payAmount}
                 onChange={(e) => setPayAmount(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Mode de paiement</label>
+              <PaymentMethodSelect value={payMethod} onChange={setPayMethod} className="w-full" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Note (optionnel)</label>

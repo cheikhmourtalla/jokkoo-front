@@ -4,6 +4,7 @@ import { Wallet, TrendingUp, TrendingDown, X, ChevronDown, ChevronUp } from "luc
 import { getCurrentCash, openCash, closeCash, addCashTransaction, getCashHistory, getCashById } from "../services/index";
 import { exportCashReportPDF } from "../utils/exportPDF";
 import { Download } from "lucide-react";
+import PaymentMethodSelect, { PAYMENT_METHOD_LABELS } from "../components/Paymentmethodselect";
 import type { CashRegister, CashTransaction } from "../types/index";
 import { getStoredUser } from "../types/auth";
 
@@ -28,6 +29,7 @@ export default function Cash() {
   const [txType, setTxType] = useState<"IN" | "OUT">("IN");
   const [txAmount, setTxAmount] = useState("");
   const [txLabel, setTxLabel] = useState("");
+  const [txMethod, setTxMethod] = useState("CASH");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchData = async () => {
@@ -87,11 +89,12 @@ export default function Cash() {
     if (!txAmount || !txLabel) return toast.error("Montant et libellé obligatoires");
     setSubmitting(true);
     try {
-      await addCashTransaction({ type: txType, amount: Number(txAmount), label: txLabel });
+      await addCashTransaction({ type: txType, amount: Number(txAmount), label: txLabel, paymentMethod: txMethod } as any);
       toast.success("Transaction enregistrée");
       setShowTxForm(false);
       setTxAmount("");
       setTxLabel("");
+      setTxMethod("CASH");
       await fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Erreur");
@@ -223,7 +226,11 @@ export default function Cash() {
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
                     placeholder="Ex: 5000" required />
                 </div>
-                <div className="sm:col-span-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Mode de paiement</label>
+                  <PaymentMethodSelect value={txMethod} onChange={setTxMethod} className="w-full" />
+                </div>
+                <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Libellé</label>
                   <input type="text" value={txLabel} onChange={(e) => setTxLabel(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
@@ -258,7 +265,10 @@ export default function Cash() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-800">{tx.label}</p>
-                        <p className="text-xs text-gray-400">{new Date(tx.createdAt).toLocaleTimeString("fr-FR")}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(tx.createdAt).toLocaleTimeString("fr-FR")} •{" "}
+                          {PAYMENT_METHOD_LABELS[(tx as any).paymentMethod || "CASH"]}
+                        </p>
                       </div>
                     </div>
                     <span className={`text-sm font-bold ${tx.type === "IN" ? "text-emerald-600" : "text-red-600"}`}>

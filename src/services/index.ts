@@ -110,7 +110,7 @@ export type InvoiceListResponse = {
 };
 export const getInvoices = async (params?: { search?: string; status?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number }): Promise<InvoiceListResponse> => (await api.get("/invoices", { params })).data;
 export const getInvoiceById = async (id: number): Promise<Sale> => (await api.get(`/invoices/${id}`)).data;
-export const addInvoicePayment = async (id: number, amount: number, note?: string) => (await api.patch(`/invoices/${id}/payment`, { amount, note })).data;
+export const addInvoicePayment = async (id: number, amount: number, note?: string, paymentMethod = "CASH") => (await api.patch(`/invoices/${id}/payment`, { amount, note, paymentMethod })).data;
 
 // ── Stock ─────────────────────────────────────────────────────
 export type StockPayload = { productId: number; quantity: number; supplierId?: number; unitCost?: number; paidAmount?: number; createDebt?: boolean; note?: string };

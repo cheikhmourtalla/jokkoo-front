@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, X, Printer, Search } from "lucide-react";
+import { Plus, X, Printer, Search, Download } from "lucide-react";
 import { getSales, createSale, addSalePayment, deleteSale, getProducts, getClients, getCurrentCash, getSuggestedPrice } from "../services/index";
 import { exportSalesToExcel } from "../utils/exportExcel";
 import { exportSalesPDF } from "../utils/exportPDF";
-import { Download } from "lucide-react";
 import { printInvoice as doPrint } from "../utils/printInvoice";
+import PaymentMethodSelect from "../components/Paymentmethodselect";
 import type { Sale, Product, Client } from "../types/index";
 import { isAdmin } from "../types/auth";
 import { getStoredUser } from "../types/auth";
@@ -41,6 +41,7 @@ export default function Sales() {
   const [customerName, setCustomerName] = useState("");
   const [paidAmount, setPaidAmount] = useState<number | "">("");
   const [note, setNote] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
 
   // Paiement partiel
   const [paymentSaleId, setPaymentSaleId] = useState<number | null>(null);
@@ -122,7 +123,6 @@ export default function Sales() {
       setSelectedPrice(p.salePrice);
       setPriceTier("detail");
       setPriceSuggestion("");
-      // Calculer le prix suggéré avec la quantité actuelle
       if (selectedQty > 1 && (p.semiWholesalePrice || p.wholesalePrice)) {
         try {
           const suggestion = await getSuggestedPrice(id, selectedQty);
@@ -147,7 +147,6 @@ export default function Sales() {
     }
   };
 
-  // Recalculer le prix quand la quantité change
   const handleQtyChange = async (qty: number) => {
     setSelectedQty(qty);
     if (!selectedProductId || qty <= 0) return;
@@ -180,8 +179,9 @@ export default function Sales() {
         customerName: customerName || undefined,
         paidAmount: paid,
         note: note || undefined,
+        paymentMethod,
         items: cart.map((c) => ({ productId: c.productId, quantity: c.quantity, unitPrice: c.unitPrice })),
-      });
+      } as any);
       toast.success("Vente enregistrée avec succès");
       setInvoiceSale(res.sale);
       setShowForm(false);
@@ -190,6 +190,7 @@ export default function Sales() {
       setCustomerName("");
       setPaidAmount("");
       setNote("");
+      setPaymentMethod("CASH");
       await fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Erreur enregistrement vente");
@@ -289,8 +290,6 @@ export default function Sales() {
           className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition">
           <Plus size={16} /> Nouvelle vente
         </button>
-
-        {/* Boutons export */}
         <div className="flex gap-2">
           <button onClick={() => exportSalesToExcel(sales, user?.shopName || "Boutique")}
             className="flex items-center gap-1.5 rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
@@ -314,8 +313,6 @@ export default function Sales() {
           {/* Grille de produits */}
           <div className="space-y-3">
             <p className="text-sm font-semibold text-slate-700">Sélectionner les produits</p>
-
-            {/* Recherche + filtre catégorie */}
             <div className="flex flex-wrap gap-2">
               <div className="relative flex-1 min-w-[160px]">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -324,8 +321,6 @@ export default function Sales() {
                   className="w-full rounded-xl border border-gray-300 py-2 pl-8 pr-3 text-sm outline-none focus:border-emerald-500" />
               </div>
             </div>
-
-            {/* Grille produits cliquables */}
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 max-h-56 overflow-y-auto pr-1">
               {products
                 .filter((p) => p.quantity > 0)
@@ -336,11 +331,8 @@ export default function Sales() {
                     <div key={p.id}
                       onClick={() => handleProductSelect(p.id)}
                       className={`relative cursor-pointer rounded-xl border-2 overflow-hidden transition ${
-                        isSelected
-                          ? "border-emerald-500 ring-2 ring-emerald-200"
-                          : "border-gray-200 hover:border-emerald-300"
+                        isSelected ? "border-emerald-500 ring-2 ring-emerald-200" : "border-gray-200 hover:border-emerald-300"
                       }`}>
-                      {/* Image fixe */}
                       <div className="h-20 w-full bg-slate-100 overflow-hidden">
                         {p.imageUrl ? (
                           <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
@@ -350,13 +342,11 @@ export default function Sales() {
                           </div>
                         )}
                       </div>
-                      {/* Infos sous l'image */}
                       <div className={`px-2 py-1.5 ${isSelected ? "bg-emerald-50" : "bg-white"}`}>
                         <p className="text-xs font-semibold text-slate-800 truncate leading-tight">{p.name}</p>
                         <p className="text-xs text-emerald-600 font-bold">{p.salePrice.toLocaleString("fr-FR")} F</p>
                         <p className="text-xs text-gray-400">{p.quantity} en stock</p>
                       </div>
-                      {/* Badge sélectionné */}
                       {isSelected && (
                         <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center shadow">
                           <span className="text-white text-xs font-bold">✓</span>
@@ -460,6 +450,10 @@ export default function Sales() {
               <input type="text" value={customerName} onChange={(e) => { setCustomerName(e.target.value); if (e.target.value) setClientId(""); }}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
                 placeholder="Nom du client..." disabled={!!clientId} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Mode de paiement</label>
+              <PaymentMethodSelect value={paymentMethod} onChange={setPaymentMethod} className="w-full" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Montant payé (FCFA)</label>
@@ -588,9 +582,7 @@ export default function Sales() {
                     )}
                   </div>
                 </div>
-
                 <div className="flex flex-wrap gap-2">
-
                   {sale.status !== "PAID" && (
                     <button
                       onClick={() => {

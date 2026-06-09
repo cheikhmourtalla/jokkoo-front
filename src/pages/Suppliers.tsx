@@ -5,6 +5,7 @@ import {
   getSuppliers, createSupplier, updateSupplier, deleteSupplier,
   addSupplierDebt, addSupplierPayment, getCurrentCash,
 } from "../services/index";
+import PaymentMethodSelect from "../components/Paymentmethodselect";
 import type { Supplier, SupplierDebt } from "../types/index";
 
 const fmt = (v: number) => `${v.toLocaleString("fr-FR")} FCFA`;
@@ -30,6 +31,7 @@ export default function Suppliers() {
   const [payingDebt, setPayingDebt] = useState<{ supplierId: number; debt: SupplierDebt } | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [payNote, setPayNote] = useState("");
+  const [payMethod, setPayMethod] = useState("CASH");
   const [paySubmitting, setPaySubmitting] = useState(false);
 
   const checkCash = async () => {
@@ -104,11 +106,11 @@ export default function Suppliers() {
     setPaySubmitting(true);
     try {
       await addSupplierPayment(payingDebt.supplierId, payingDebt.debt.id, {
-        amount: Number(payAmount),
-        note: payNote || undefined,
-      });
+       amount: Number(payAmount),
+       note: payNote || undefined,
+    } as any);
       toast.success("Paiement enregistré — caisse mise à jour");
-      setPayingDebt(null); setPayAmount(""); setPayNote("");
+      setPayingDebt(null); setPayAmount(""); setPayNote(""); setPayMethod("CASH");
       await fetchSuppliers();
     } catch (error: any) { toast.error(error?.response?.data?.message || "Erreur"); }
     finally { setPaySubmitting(false); }
@@ -209,6 +211,10 @@ export default function Suppliers() {
               <input type="number" min={1} max={payingDebt.debt.remaining} value={payAmount}
                 onChange={(e) => setPayAmount(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Mode de paiement</label>
+              <PaymentMethodSelect value={payMethod} onChange={setPayMethod} className="w-full" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Note (optionnel)</label>
