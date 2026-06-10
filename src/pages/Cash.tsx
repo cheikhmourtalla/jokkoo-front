@@ -180,10 +180,10 @@ export default function Cash() {
                           <MethodIcon method={m.method} cls="h-10 w-10" />
                           <div>
                             <p className={`font-semibold text-sm ${config.text}`}>{config.name}</p>
-                            <p className="text-xs text-gray-400">+{fmt(m.totalIn)} encaissé{m.totalOut > 0 ? ` • -${fmt(m.totalOut)} décaissé` : ""}</p>
+                            <p className="text-xs text-gray-400">+{fmt(m.totalIn)} entré{m.totalOut > 0 ? ` • -${fmt(m.totalOut)} sorti` : ""}</p>
                           </div>
                         </div>
-                        <p className={`font-bold text-base ${config.text}`}>{fmt(m.totalIn)}</p>
+                        <p className={`font-bold text-base ${config.text}`}>{fmt(m.net)}</p>
                       </div>
                     );
                   })}
@@ -274,8 +274,8 @@ export default function Cash() {
                       <MethodIcon method={m.method} cls="h-12 w-12" />
                       <div className="min-w-0">
                         <p className={`font-semibold text-sm ${m.config.text}`}>{m.config.name}</p>
-                        <p className={`font-bold text-xl ${m.config.text}`}>{fmt(m.totalIn)}</p>
-                        {m.totalOut > 0 && <p className="text-xs text-red-500">-{fmt(m.totalOut)} sorti</p>}
+                        <p className={`font-bold text-xl ${m.config.text}`}>{fmt(m.net)}</p>
+                        {m.totalOut > 0 && <p className="text-xs text-gray-400 text-xs">+{fmt(m.totalIn)} entré • -{fmt(m.totalOut)} sorti</p>}
                       </div>
                     </div>
                   ))}
@@ -442,7 +442,7 @@ export default function Cash() {
                                 <MethodIcon method={m.method} cls="h-8 w-8" />
                                 <div>
                                   <p className={`text-xs font-semibold ${m.config.text}`}>{m.config.name}</p>
-                                  <p className={`text-sm font-bold ${m.config.text}`}>{fmt(m.totalIn)}</p>
+                                  <p className={`text-sm font-bold ${m.config.text}`}>{fmt(m.net)}</p>
                                 </div>
                               </div>
                             ))}
