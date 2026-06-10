@@ -7,8 +7,8 @@ import { Download } from "lucide-react";
 import PaymentMethodSelect from "../components/Paymentmethodselect";
 import type { CashRegister, CashTransaction } from "../types/index";
 import { getStoredUser } from "../types/auth";
-import waveLogo from "../assets/wave-logo.png";
-import orangeMoneyLogo from "../assets/orange-money-logo.png";
+import waveLogo from "../assets/wave.png";
+import orangeMoneyLogo from "../assets/om.png";
 
 const fmt = (v: number) => `${v.toLocaleString("fr-FR")} FCFA`;
 
