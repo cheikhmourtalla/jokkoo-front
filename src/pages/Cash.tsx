@@ -4,50 +4,36 @@ import { Wallet, TrendingUp, TrendingDown, X, ChevronDown, ChevronUp } from "luc
 import { getCurrentCash, openCash, closeCash, addCashTransaction, getCashHistory, getCashById } from "../services/index";
 import { exportCashReportPDF } from "../utils/exportPDF";
 import { Download } from "lucide-react";
-import PaymentMethodSelect from "../components/Paymentmethodselect";
+import PaymentMethodSelect from "../components/PaymentMethodSelect";
 import type { CashRegister, CashTransaction } from "../types/index";
 import { getStoredUser } from "../types/auth";
+import waveLogo from "../assets/wave-logo.png";
+import orangeMoneyLogo from "../assets/orange-money-logo.png";
 
 const fmt = (v: number) => `${v.toLocaleString("fr-FR")} FCFA`;
 
-// Configs des moyens de paiement avec vrais logos
-const METHOD_CONFIG: Record<string, { name: string; logo: string; bg: string; text: string }> = {
-  CASH: {
-    name: "Espèces",
-    logo: "https://cdn-icons-png.flaticon.com/512/2489/2489756.png",
-    bg: "bg-green-50",
-    text: "text-green-700",
-  },
-  WAVE: {
-    name: "Wave",
-    logo: "https://play-lh.googleusercontent.com/MEy7FMpBZPBNRFdLFVsGMbNSbFIK8bUJAOmajkv0HEi9kNnlkKBvyLf5GxHhOJVuPA=w240-h480-rw",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-  },
-  ORANGE_MONEY: {
-    name: "Orange Money",
-    logo: "https://play-lh.googleusercontent.com/KJhCkJkHPaGXqK9IxhvnIZBChhiZxHB7PlKmrTl8FmwVkfp9KHKqEKG1pIJlGXQasg=w240-h480-rw",
-    bg: "bg-orange-50",
-    text: "text-orange-700",
-  },
-  FREE_MONEY: {
-    name: "Free Money",
-    logo: "https://play-lh.googleusercontent.com/tnATgUTlGXYzFAbNjHWnXAzFnIvHFpGBCCbcV3GZjCMyCLl7Mwb5JR1V_EWbEAFHrA=w240-h480-rw",
-    bg: "bg-purple-50",
-    text: "text-purple-700",
-  },
-  BANK: {
-    name: "Virement bancaire",
-    logo: "https://cdn-icons-png.flaticon.com/512/2830/2830284.png",
-    bg: "bg-slate-50",
-    text: "text-slate-700",
-  },
-  OTHER: {
-    name: "Autre",
-    logo: "https://cdn-icons-png.flaticon.com/512/2586/2586488.png",
-    bg: "bg-gray-50",
-    text: "text-gray-700",
-  },
+const METHOD_CONFIG: Record<string, { name: string; logo?: string; emoji?: string; bg: string; text: string }> = {
+  CASH:         { name: "Espèces",      emoji: "💵", bg: "bg-green-50",  text: "text-green-700"  },
+  WAVE:         { name: "Wave",         logo: waveLogo,        bg: "bg-blue-50",   text: "text-blue-700"   },
+  ORANGE_MONEY: { name: "Orange Money", logo: orangeMoneyLogo, bg: "bg-orange-50", text: "text-orange-700" },
+  FREE_MONEY:   { name: "Free Money",   emoji: "🟣", bg: "bg-purple-50", text: "text-purple-700" },
+  BANK:         { name: "Virement",     emoji: "🏦", bg: "bg-slate-50",  text: "text-slate-700"  },
+  OTHER:        { name: "Autre",        emoji: "📱", bg: "bg-gray-50",   text: "text-gray-700"   },
+};
+
+const MethodIcon = ({ method, cls = "h-10 w-10" }: { method: string; cls?: string }) => {
+  const config = METHOD_CONFIG[method] || METHOD_CONFIG.OTHER;
+  if (config.logo) {
+    return (
+      <img src={config.logo} alt={config.name}
+        className={`${cls} rounded-xl object-contain bg-white p-1 shadow-sm flex-shrink-0 border border-gray-100`} />
+    );
+  }
+  return (
+    <div className={`${cls} rounded-xl ${config.bg} border border-gray-200 flex items-center justify-center flex-shrink-0 text-xl`}>
+      {config.emoji}
+    </div>
+  );
 };
 
 export default function Cash() {
@@ -62,7 +48,6 @@ export default function Cash() {
   const [sessionDetail, setSessionDetail] = useState<Record<number, CashRegister>>({});
   const [closureSummary, setClosureSummary] = useState<any>(null);
 
-  // Formulaires
   const [openAmount, setOpenAmount] = useState("");
   const [openNote, setOpenNote] = useState("");
   const [showOpenForm, setShowOpenForm] = useState(false);
@@ -83,11 +68,8 @@ export default function Cash() {
       setHistory(hist.data || []);
       setHistoryTotal(hist.pagination?.total || 0);
       setHistoryTotalPages(hist.pagination?.totalPages || 1);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchData(); }, [historyPage]);
@@ -99,13 +81,10 @@ export default function Cash() {
     try {
       await openCash({ openingAmount: Number(openAmount), note: openNote || undefined });
       toast.success("Caisse ouverte");
-      setShowOpenForm(false);
-      setOpenAmount("");
-      setOpenNote("");
+      setShowOpenForm(false); setOpenAmount(""); setOpenNote("");
       await fetchData();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Erreur");
-    } finally { setSubmitting(false); }
+    } catch (error: any) { toast.error(error?.response?.data?.message || "Erreur"); }
+    finally { setSubmitting(false); }
   };
 
   const handleCloseCash = async () => {
@@ -116,9 +95,7 @@ export default function Cash() {
       toast.success("Caisse fermée ✅");
       if (res.summary) setClosureSummary(res.summary);
       await fetchData();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Erreur");
-    }
+    } catch (error: any) { toast.error(error?.response?.data?.message || "Erreur"); }
   };
 
   const handleAddTx = async (e: React.FormEvent) => {
@@ -128,21 +105,14 @@ export default function Cash() {
     try {
       await addCashTransaction({ type: txType, amount: Number(txAmount), label: txLabel, paymentMethod: txMethod } as any);
       toast.success("Transaction enregistrée");
-      setShowTxForm(false);
-      setTxAmount("");
-      setTxLabel("");
-      setTxMethod("CASH");
+      setShowTxForm(false); setTxAmount(""); setTxLabel(""); setTxMethod("CASH");
       await fetchData();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Erreur");
-    } finally { setSubmitting(false); }
+    } catch (error: any) { toast.error(error?.response?.data?.message || "Erreur"); }
+    finally { setSubmitting(false); }
   };
 
   const loadSessionDetail = async (id: number) => {
-    if (sessionDetail[id]) {
-      setExpandedSession(expandedSession === id ? null : id);
-      return;
-    }
+    if (sessionDetail[id]) { setExpandedSession(expandedSession === id ? null : id); return; }
     try {
       const data = await getCashById(id);
       setSessionDetail((prev) => ({ ...prev, [id]: data }));
@@ -150,7 +120,6 @@ export default function Cash() {
     } catch { toast.error("Erreur chargement session"); }
   };
 
-  // Calcul répartition par moyen de paiement
   const getMethodBreakdown = (transactions: CashTransaction[]) => {
     const byMethod: Record<string, { in: number; out: number }> = {};
     transactions.forEach((tx: any) => {
@@ -175,7 +144,7 @@ export default function Cash() {
   return (
     <section className="space-y-6">
 
-      {/* ── Rapport de clôture ────────────────────────── */}
+      {/* Rapport de clôture */}
       {closureSummary && (
         <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
           <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
@@ -186,14 +155,12 @@ export default function Cash() {
             <p className="text-sm text-gray-500">
               {closureSummary.date} • Ouvert à {new Date(closureSummary.openedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — Fermé à {new Date(closureSummary.closedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </p>
-
-            {/* Résumé global */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
                 { label: "Ouverture", value: fmt(closureSummary.openingAmount), bg: "bg-slate-100", text: "text-slate-700" },
-                { label: "Entrées", value: fmt(closureSummary.totalIn), bg: "bg-emerald-100", text: "text-emerald-700" },
-                { label: "Sorties", value: fmt(closureSummary.totalOut), bg: "bg-red-100", text: "text-red-700" },
-                { label: "Clôture", value: fmt(closureSummary.closingAmount), bg: "bg-slate-900", text: "text-white" },
+                { label: "Entrées",   value: fmt(closureSummary.totalIn),        bg: "bg-emerald-100", text: "text-emerald-700" },
+                { label: "Sorties",   value: fmt(closureSummary.totalOut),       bg: "bg-red-100",     text: "text-red-700" },
+                { label: "Clôture",   value: fmt(closureSummary.closingAmount),  bg: "bg-slate-900",   text: "text-white" },
               ].map((s) => (
                 <div key={s.label} className={`rounded-2xl p-4 text-center ${s.bg}`}>
                   <p className={`text-xs font-medium opacity-70 mb-1 ${s.text}`}>{s.label}</p>
@@ -201,8 +168,6 @@ export default function Cash() {
                 </div>
               ))}
             </div>
-
-            {/* Répartition par moyen de paiement */}
             {closureSummary.paymentMethodSummary?.length > 0 && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Répartition par moyen de paiement</p>
@@ -212,13 +177,10 @@ export default function Cash() {
                     return (
                       <div key={m.method} className={`flex items-center justify-between rounded-2xl px-4 py-3 ${config.bg}`}>
                         <div className="flex items-center gap-3">
-                          <img src={config.logo} alt={config.name}
-                            className="h-9 w-9 rounded-xl object-cover bg-white p-0.5 shadow-sm"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
+                          <MethodIcon method={m.method} cls="h-10 w-10" />
                           <div>
                             <p className={`font-semibold text-sm ${config.text}`}>{config.name}</p>
-                            <p className="text-xs text-gray-400">+{fmt(m.totalIn)} encaissé {m.totalOut > 0 && `• -${fmt(m.totalOut)} décaissé`}</p>
+                            <p className="text-xs text-gray-400">+{fmt(m.totalIn)} encaissé{m.totalOut > 0 ? ` • -${fmt(m.totalOut)} décaissé` : ""}</p>
                           </div>
                         </div>
                         <p className={`font-bold text-base ${config.text}`}>{fmt(m.totalIn)}</p>
@@ -237,13 +199,11 @@ export default function Cash() {
         </div>
       )}
 
-      {/* ── Caisse fermée ─────────────────────────────── */}
+      {/* Caisse fermée */}
       {!cashState.open ? (
         <div className="rounded-2xl bg-white p-8 shadow-sm">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="rounded-full bg-yellow-100 p-5">
-              <Wallet size={32} className="text-yellow-600" />
-            </div>
+            <div className="rounded-full bg-yellow-100 p-5"><Wallet size={32} className="text-yellow-600" /></div>
             <div>
               <h3 className="text-xl font-bold text-slate-900">Caisse fermée</h3>
               <p className="mt-1 text-sm text-gray-500">Ouvrez la caisse pour commencer les transactions du jour.</p>
@@ -259,14 +219,12 @@ export default function Cash() {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Montant d'ouverture (FCFA)</label>
                   <input type="number" min="0" value={openAmount} onChange={(e) => setOpenAmount(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
-                    placeholder="Ex: 50000" required />
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="Ex: 50000" required />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Note (optionnel)</label>
                   <input type="text" value={openNote} onChange={(e) => setOpenNote(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
-                    placeholder="Ex: Fonds de caisse matin" />
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="Ex: Fonds de caisse matin" />
                 </div>
                 <div className="flex gap-3">
                   <button type="submit" disabled={submitting}
@@ -283,7 +241,7 @@ export default function Cash() {
 
       ) : (
         <>
-          {/* ── Résumé caisse ouverte ───────────────────── */}
+          {/* Résumé caisse ouverte */}
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <div className="rounded-2xl bg-slate-900 p-5 text-white">
               <p className="text-xs text-white/60">Solde actuel</p>
@@ -304,7 +262,7 @@ export default function Cash() {
             </div>
           </div>
 
-          {/* ── Répartition par moyen de paiement ──────── */}
+          {/* Répartition par moyen de paiement */}
           {cr?.transactions?.length ? (
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-base font-bold text-slate-900">Encaissements par moyen de paiement</h3>
@@ -313,18 +271,11 @@ export default function Cash() {
                   .filter((m) => m.totalIn > 0)
                   .map((m) => (
                     <div key={m.method} className={`flex items-center gap-4 rounded-2xl p-4 ${m.config.bg}`}>
-                      <img
-                        src={m.config.logo}
-                        alt={m.config.name}
-                        className="h-12 w-12 rounded-xl object-cover bg-white p-1 shadow-sm flex-shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
+                      <MethodIcon method={m.method} cls="h-12 w-12" />
                       <div className="min-w-0">
                         <p className={`font-semibold text-sm ${m.config.text}`}>{m.config.name}</p>
                         <p className={`font-bold text-xl ${m.config.text}`}>{fmt(m.totalIn)}</p>
-                        {m.totalOut > 0 && (
-                          <p className="text-xs text-red-500">-{fmt(m.totalOut)} sorti</p>
-                        )}
+                        {m.totalOut > 0 && <p className="text-xs text-red-500">-{fmt(m.totalOut)} sorti</p>}
                       </div>
                     </div>
                   ))}
@@ -336,7 +287,7 @@ export default function Cash() {
             </div>
           ) : null}
 
-          {/* ── Actions ─────────────────────────────────── */}
+          {/* Actions */}
           <div className="flex flex-wrap gap-3">
             <button onClick={() => { setTxType("IN"); setShowTxForm(true); }}
               className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition">
@@ -358,7 +309,7 @@ export default function Cash() {
             )}
           </div>
 
-          {/* ── Formulaire transaction manuelle ─────────── */}
+          {/* Formulaire transaction manuelle */}
           {showTxForm && (
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -371,8 +322,7 @@ export default function Cash() {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Montant (FCFA)</label>
                   <input type="number" min="1" value={txAmount} onChange={(e) => setTxAmount(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
-                    placeholder="Ex: 5000" required />
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="Ex: 5000" required />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Mode de paiement</label>
@@ -381,8 +331,7 @@ export default function Cash() {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Libellé</label>
                   <input type="text" value={txLabel} onChange={(e) => setTxLabel(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
-                    placeholder="Ex: Achat fournitures..." required />
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500" placeholder="Ex: Achat fournitures..." required />
                 </div>
                 <div className="flex gap-3 sm:col-span-3">
                   <button type="submit" disabled={submitting}
@@ -396,7 +345,7 @@ export default function Cash() {
             </div>
           )}
 
-          {/* ── Transactions du jour ─────────────────────── */}
+          {/* Transactions du jour */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-base font-bold text-slate-900">Transactions du jour</h3>
             {!cr?.transactions?.length ? (
@@ -410,17 +359,12 @@ export default function Cash() {
                     <div key={tx.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className={`rounded-full p-1.5 ${tx.type === "IN" ? "bg-emerald-100" : "bg-red-100"}`}>
-                          {tx.type === "IN"
-                            ? <TrendingUp size={13} className="text-emerald-600" />
-                            : <TrendingDown size={13} className="text-red-600" />}
+                          {tx.type === "IN" ? <TrendingUp size={13} className="text-emerald-600" /> : <TrendingDown size={13} className="text-red-600" />}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-800">{tx.label}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <img src={config.logo} alt={config.name}
-                              className="h-4 w-4 rounded object-cover"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
+                            <MethodIcon method={method} cls="h-4 w-4" />
                             <p className="text-xs text-gray-400">{config.name} • {new Date(tx.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                           </div>
                         </div>
@@ -437,23 +381,20 @@ export default function Cash() {
         </>
       )}
 
-      {/* ── Historique journalier ──────────────────────── */}
+      {/* Historique journalier */}
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-900">Historique journalier</h3>
           <span className="text-sm text-gray-400">{historyTotal} session(s)</span>
         </div>
-
         {!history.length ? (
           <p className="text-sm text-gray-400">Aucun historique disponible.</p>
         ) : (
           <div className="space-y-3">
             {history.map((session) => (
               <div key={session.id} className="rounded-2xl border border-gray-200 overflow-hidden">
-                <div
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 transition"
-                  onClick={() => loadSessionDetail(session.id)}
-                >
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 transition"
+                  onClick={() => loadSessionDetail(session.id)}>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-slate-900">
@@ -470,46 +411,26 @@ export default function Cash() {
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-right text-sm">
-                      <p className="text-gray-400 text-xs">Ouverture</p>
-                      <p className="font-medium">{fmt(session.openingAmount)}</p>
-                    </div>
-                    <div className="text-right text-sm">
-                      <p className="text-emerald-600 text-xs">+Entrées</p>
-                      <p className="font-medium text-emerald-700">{fmt(session.totalIn)}</p>
-                    </div>
-                    <div className="text-right text-sm">
-                      <p className="text-red-500 text-xs">-Sorties</p>
-                      <p className="font-medium text-red-600">{fmt(session.totalOut)}</p>
-                    </div>
+                    <div className="text-right text-sm"><p className="text-gray-400 text-xs">Ouverture</p><p className="font-medium">{fmt(session.openingAmount)}</p></div>
+                    <div className="text-right text-sm"><p className="text-emerald-600 text-xs">+Entrées</p><p className="font-medium text-emerald-700">{fmt(session.totalIn)}</p></div>
+                    <div className="text-right text-sm"><p className="text-red-500 text-xs">-Sorties</p><p className="font-medium text-red-600">{fmt(session.totalOut)}</p></div>
                     <div className="text-right text-sm">
                       <p className="text-gray-400 text-xs">Clôture</p>
-                      <p className="font-bold text-slate-900">
-                        {session.closingAmount != null ? fmt(session.closingAmount) : fmt((session as any).currentBalance ?? 0)}
-                      </p>
+                      <p className="font-bold text-slate-900">{session.closingAmount != null ? fmt(session.closingAmount) : fmt((session as any).currentBalance ?? 0)}</p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (sessionDetail[session.id]) {
-                          exportCashReportPDF(sessionDetail[session.id], user?.shopName || "Boutique");
-                        } else {
-                          loadSessionDetail(session.id);
-                          toast("Cliquez à nouveau pour télécharger", { icon: "ℹ️", duration: 3000 });
-                        }
-                      }}
-                      className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition">
+                    <button onClick={(e) => {
+                      e.stopPropagation();
+                      if (sessionDetail[session.id]) exportCashReportPDF(sessionDetail[session.id], user?.shopName || "Boutique");
+                      else { loadSessionDetail(session.id); toast("Cliquez à nouveau pour télécharger", { icon: "ℹ️", duration: 3000 }); }
+                    }} className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition">
                       <Download size={12} /> PDF
                     </button>
-                    {expandedSession === session.id
-                      ? <ChevronUp size={18} className="text-gray-400" />
-                      : <ChevronDown size={18} className="text-gray-400" />}
+                    {expandedSession === session.id ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
                   </div>
                 </div>
 
                 {expandedSession === session.id && sessionDetail[session.id] && (
                   <div className="border-t bg-slate-50 px-5 py-4">
-                    {/* Répartition par moyen dans l'historique */}
                     {sessionDetail[session.id].transactions?.length ? (
                       <div className="mb-4">
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Par moyen de paiement</p>
@@ -518,10 +439,7 @@ export default function Cash() {
                             .filter((m) => m.totalIn > 0)
                             .map((m) => (
                               <div key={m.method} className={`flex items-center gap-3 rounded-xl p-3 ${m.config.bg}`}>
-                                <img src={m.config.logo} alt={m.config.name}
-                                  className="h-8 w-8 rounded-lg object-cover bg-white p-0.5 shadow-sm flex-shrink-0"
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
+                                <MethodIcon method={m.method} cls="h-8 w-8" />
                                 <div>
                                   <p className={`text-xs font-semibold ${m.config.text}`}>{m.config.name}</p>
                                   <p className={`text-sm font-bold ${m.config.text}`}>{fmt(m.totalIn)}</p>
@@ -531,7 +449,6 @@ export default function Cash() {
                         </div>
                       </div>
                     ) : null}
-
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
                       Transactions ({sessionDetail[session.id].transactions?.length || 0})
                     </p>
@@ -546,17 +463,12 @@ export default function Cash() {
                             <div key={tx.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5">
                               <div className="flex items-center gap-3">
                                 <div className={`rounded-full p-1 ${tx.type === "IN" ? "bg-emerald-100" : "bg-red-100"}`}>
-                                  {tx.type === "IN"
-                                    ? <TrendingUp size={12} className="text-emerald-600" />
-                                    : <TrendingDown size={12} className="text-red-600" />}
+                                  {tx.type === "IN" ? <TrendingUp size={12} className="text-emerald-600" /> : <TrendingDown size={12} className="text-red-600" />}
                                 </div>
                                 <div>
                                   <p className="text-xs font-medium text-slate-800">{tx.label}</p>
                                   <div className="flex items-center gap-1 mt-0.5">
-                                    <img src={config.logo} alt={config.name}
-                                      className="h-3 w-3 rounded object-cover"
-                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                    />
+                                    <MethodIcon method={method} cls="h-3 w-3" />
                                     <p className="text-xs text-gray-400">{config.name} • {new Date(tx.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                                   </div>
                                 </div>
@@ -575,18 +487,13 @@ export default function Cash() {
             ))}
           </div>
         )}
-
         {historyTotalPages > 1 && (
           <div className="mt-4 flex items-center justify-center gap-3">
             <button onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
-              ← Précédent
-            </button>
+              className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">← Précédent</button>
             <span className="text-sm text-gray-500">Page {historyPage} / {historyTotalPages}</span>
             <button onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))} disabled={historyPage === historyTotalPages}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
-              Suivant →
-            </button>
+              className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">Suivant →</button>
           </div>
         )}
       </div>
