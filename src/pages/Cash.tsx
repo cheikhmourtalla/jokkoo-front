@@ -4,11 +4,51 @@ import { Wallet, TrendingUp, TrendingDown, X, ChevronDown, ChevronUp } from "luc
 import { getCurrentCash, openCash, closeCash, addCashTransaction, getCashHistory, getCashById } from "../services/index";
 import { exportCashReportPDF } from "../utils/exportPDF";
 import { Download } from "lucide-react";
-import PaymentMethodSelect, { PAYMENT_METHOD_LABELS } from "../components/Paymentmethodselect";
+import PaymentMethodSelect from "../components/Paymentmethodselect";
 import type { CashRegister, CashTransaction } from "../types/index";
 import { getStoredUser } from "../types/auth";
 
 const fmt = (v: number) => `${v.toLocaleString("fr-FR")} FCFA`;
+
+// Configs des moyens de paiement avec vrais logos
+const METHOD_CONFIG: Record<string, { name: string; logo: string; bg: string; text: string }> = {
+  CASH: {
+    name: "Espèces",
+    logo: "https://cdn-icons-png.flaticon.com/512/2489/2489756.png",
+    bg: "bg-green-50",
+    text: "text-green-700",
+  },
+  WAVE: {
+    name: "Wave",
+    logo: "https://play-lh.googleusercontent.com/MEy7FMpBZPBNRFdLFVsGMbNSbFIK8bUJAOmajkv0HEi9kNnlkKBvyLf5GxHhOJVuPA=w240-h480-rw",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+  },
+  ORANGE_MONEY: {
+    name: "Orange Money",
+    logo: "https://play-lh.googleusercontent.com/KJhCkJkHPaGXqK9IxhvnIZBChhiZxHB7PlKmrTl8FmwVkfp9KHKqEKG1pIJlGXQasg=w240-h480-rw",
+    bg: "bg-orange-50",
+    text: "text-orange-700",
+  },
+  FREE_MONEY: {
+    name: "Free Money",
+    logo: "https://play-lh.googleusercontent.com/tnATgUTlGXYzFAbNjHWnXAzFnIvHFpGBCCbcV3GZjCMyCLl7Mwb5JR1V_EWbEAFHrA=w240-h480-rw",
+    bg: "bg-purple-50",
+    text: "text-purple-700",
+  },
+  BANK: {
+    name: "Virement bancaire",
+    logo: "https://cdn-icons-png.flaticon.com/512/2830/2830284.png",
+    bg: "bg-slate-50",
+    text: "text-slate-700",
+  },
+  OTHER: {
+    name: "Autre",
+    logo: "https://cdn-icons-png.flaticon.com/512/2586/2586488.png",
+    bg: "bg-gray-50",
+    text: "text-gray-700",
+  },
+};
 
 export default function Cash() {
   const user = getStoredUser();
@@ -20,6 +60,7 @@ export default function Cash() {
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
   const [sessionDetail, setSessionDetail] = useState<Record<number, CashRegister>>({});
+  const [closureSummary, setClosureSummary] = useState<any>(null);
 
   // Formulaires
   const [openAmount, setOpenAmount] = useState("");
@@ -67,8 +108,6 @@ export default function Cash() {
     } finally { setSubmitting(false); }
   };
 
-  const [closureSummary, setClosureSummary] = useState<any>(null);
-
   const handleCloseCash = async () => {
     if (!cashState.cashRegister) return;
     if (!confirm("Fermer la caisse ? Un rapport de clôture sera généré.")) return;
@@ -111,6 +150,24 @@ export default function Cash() {
     } catch { toast.error("Erreur chargement session"); }
   };
 
+  // Calcul répartition par moyen de paiement
+  const getMethodBreakdown = (transactions: CashTransaction[]) => {
+    const byMethod: Record<string, { in: number; out: number }> = {};
+    transactions.forEach((tx: any) => {
+      const m = tx.paymentMethod || "CASH";
+      if (!byMethod[m]) byMethod[m] = { in: 0, out: 0 };
+      if (tx.type === "IN") byMethod[m].in += tx.amount;
+      else byMethod[m].out += tx.amount;
+    });
+    return Object.entries(byMethod).map(([method, amounts]) => ({
+      method,
+      config: METHOD_CONFIG[method] || METHOD_CONFIG.OTHER,
+      totalIn: amounts.in,
+      totalOut: amounts.out,
+      net: amounts.in - amounts.out,
+    }));
+  };
+
   if (loading) return <div className="rounded-2xl bg-white p-8 text-center text-gray-400">Chargement...</div>;
 
   const cr = cashState.cashRegister;
@@ -118,69 +175,65 @@ export default function Cash() {
   return (
     <section className="space-y-6">
 
-      {/* Rapport de clôture */}
+      {/* ── Rapport de clôture ────────────────────────── */}
       {closureSummary && (
-        <div className="rounded-2xl bg-white p-6 shadow-sm border-l-4 border-emerald-500">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">📊 Rapport de clôture</h3>
-            <button onClick={() => setClosureSummary(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+        <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+          <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">📊 Rapport de clôture</h3>
+            <button onClick={() => setClosureSummary(null)} className="text-white/70 hover:text-white text-2xl leading-none">×</button>
           </div>
-          <p className="text-sm text-gray-500 mb-4">{closureSummary.date} • Ouvert à {new Date(closureSummary.openedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — Fermé à {new Date(closureSummary.closedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+          <div className="p-6 space-y-5">
+            <p className="text-sm text-gray-500">
+              {closureSummary.date} • Ouvert à {new Date(closureSummary.openedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — Fermé à {new Date(closureSummary.closedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </p>
 
-          {/* Résumé global */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-5">
-            {[
-              { label: "Ouverture", value: fmt(closureSummary.openingAmount), color: "bg-slate-50 text-slate-700" },
-              { label: "Entrées", value: fmt(closureSummary.totalIn), color: "bg-emerald-50 text-emerald-700" },
-              { label: "Sorties", value: fmt(closureSummary.totalOut), color: "bg-red-50 text-red-700" },
-              { label: "Clôture", value: fmt(closureSummary.closingAmount), color: "bg-slate-900 text-white" },
-            ].map((s) => (
-              <div key={s.label} className={`rounded-xl p-3 text-center ${s.color}`}>
-                <p className="text-xs opacity-70 mb-1">{s.label}</p>
-                <p className="font-bold text-sm">{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Résumé par mode de paiement */}
-          {closureSummary.paymentMethodSummary?.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase text-gray-400 mb-3">Répartition par mode de paiement</p>
-              <div className="space-y-2">
-                {closureSummary.paymentMethodSummary.map((m: any) => (
-                  <div key={m.method} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{
-                        m.method === "CASH" ? "💵" :
-                        m.method === "WAVE" ? "🔵" :
-                        m.method === "ORANGE_MONEY" ? "🟠" :
-                        m.method === "FREE_MONEY" ? "🟣" :
-                        m.method === "BANK" ? "🏦" : "📱"
-                      }</span>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{m.label}</p>
-                        <p className="text-xs text-gray-400">
-                          +{fmt(m.totalIn)} entré • -{fmt(m.totalOut)} sorti
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-sm font-bold ${m.net >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-                      {m.net >= 0 ? "+" : ""}{fmt(m.net)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {/* Total */}
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-white">
-                <span className="text-sm font-semibold">Total encaissé net</span>
-                <span className="font-bold">{fmt(closureSummary.totalIn - closureSummary.totalOut)}</span>
-              </div>
+            {/* Résumé global */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Ouverture", value: fmt(closureSummary.openingAmount), bg: "bg-slate-100", text: "text-slate-700" },
+                { label: "Entrées", value: fmt(closureSummary.totalIn), bg: "bg-emerald-100", text: "text-emerald-700" },
+                { label: "Sorties", value: fmt(closureSummary.totalOut), bg: "bg-red-100", text: "text-red-700" },
+                { label: "Clôture", value: fmt(closureSummary.closingAmount), bg: "bg-slate-900", text: "text-white" },
+              ].map((s) => (
+                <div key={s.label} className={`rounded-2xl p-4 text-center ${s.bg}`}>
+                  <p className={`text-xs font-medium opacity-70 mb-1 ${s.text}`}>{s.label}</p>
+                  <p className={`font-bold text-base ${s.text}`}>{s.value}</p>
+                </div>
+              ))}
             </div>
-          )}
 
-          <p className="mt-4 text-xs text-gray-400 text-center">
-            {closureSummary.transactionCount} transaction(s) • Géré par {closureSummary.openedBy}
-          </p>
+            {/* Répartition par moyen de paiement */}
+            {closureSummary.paymentMethodSummary?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Répartition par moyen de paiement</p>
+                <div className="space-y-2">
+                  {closureSummary.paymentMethodSummary.map((m: any) => {
+                    const config = METHOD_CONFIG[m.method] || METHOD_CONFIG.OTHER;
+                    return (
+                      <div key={m.method} className={`flex items-center justify-between rounded-2xl px-4 py-3 ${config.bg}`}>
+                        <div className="flex items-center gap-3">
+                          <img src={config.logo} alt={config.name}
+                            className="h-9 w-9 rounded-xl object-cover bg-white p-0.5 shadow-sm"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div>
+                            <p className={`font-semibold text-sm ${config.text}`}>{config.name}</p>
+                            <p className="text-xs text-gray-400">+{fmt(m.totalIn)} encaissé {m.totalOut > 0 && `• -${fmt(m.totalOut)} décaissé`}</p>
+                          </div>
+                        </div>
+                        <p className={`font-bold text-base ${config.text}`}>{fmt(m.totalIn)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-900 px-5 py-4 text-white">
+                  <span className="font-semibold">Total encaissé net</span>
+                  <span className="font-bold text-lg">{fmt(closureSummary.totalIn - closureSummary.totalOut)}</span>
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-gray-400 text-center">{closureSummary.transactionCount} transaction(s) • {closureSummary.openedBy}</p>
+          </div>
         </div>
       )}
 
@@ -200,9 +253,8 @@ export default function Cash() {
               Ouvrir la caisse
             </button>
           </div>
-
           {showOpenForm && (
-            <div className="mt-6 border-t pt-6 max-w-sm mx-auto space-y-4">
+            <div className="mt-6 border-t pt-6 max-w-sm mx-auto">
               <form onSubmit={handleOpenCash} className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Montant d'ouverture (FCFA)</label>
@@ -231,7 +283,7 @@ export default function Cash() {
 
       ) : (
         <>
-          {/* ── Caisse ouverte - résumé ─────────────────── */}
+          {/* ── Résumé caisse ouverte ───────────────────── */}
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <div className="rounded-2xl bg-slate-900 p-5 text-white">
               <p className="text-xs text-white/60">Solde actuel</p>
@@ -252,7 +304,39 @@ export default function Cash() {
             </div>
           </div>
 
-          {/* Actions */}
+          {/* ── Répartition par moyen de paiement ──────── */}
+          {cr?.transactions?.length ? (
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h3 className="mb-4 text-base font-bold text-slate-900">Encaissements par moyen de paiement</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {getMethodBreakdown(cr.transactions)
+                  .filter((m) => m.totalIn > 0)
+                  .map((m) => (
+                    <div key={m.method} className={`flex items-center gap-4 rounded-2xl p-4 ${m.config.bg}`}>
+                      <img
+                        src={m.config.logo}
+                        alt={m.config.name}
+                        className="h-12 w-12 rounded-xl object-cover bg-white p-1 shadow-sm flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <div className="min-w-0">
+                        <p className={`font-semibold text-sm ${m.config.text}`}>{m.config.name}</p>
+                        <p className={`font-bold text-xl ${m.config.text}`}>{fmt(m.totalIn)}</p>
+                        {m.totalOut > 0 && (
+                          <p className="text-xs text-red-500">-{fmt(m.totalOut)} sorti</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-900 px-5 py-4 text-white">
+                <span className="font-semibold">Total encaissé</span>
+                <span className="font-bold text-xl">{fmt(cr.totalIn)}</span>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── Actions ─────────────────────────────────── */}
           <div className="flex flex-wrap gap-3">
             <button onClick={() => { setTxType("IN"); setShowTxForm(true); }}
               className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition">
@@ -274,7 +358,7 @@ export default function Cash() {
             )}
           </div>
 
-          {/* Formulaire transaction manuelle */}
+          {/* ── Formulaire transaction manuelle ─────────── */}
           {showTxForm && (
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -298,7 +382,7 @@ export default function Cash() {
                   <label className="mb-1 block text-sm font-medium text-gray-700">Libellé</label>
                   <input type="text" value={txLabel} onChange={(e) => setTxLabel(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
-                    placeholder="Ex: Achat fournitures, Dépense transport..." required />
+                    placeholder="Ex: Achat fournitures..." required />
                 </div>
                 <div className="flex gap-3 sm:col-span-3">
                   <button type="submit" disabled={submitting}
@@ -312,83 +396,41 @@ export default function Cash() {
             </div>
           )}
 
-          {/* Répartition par moyen de paiement */}
-          {cr?.transactions?.length ? (() => {
-            const byMethod: Record<string, { in: number; out: number }> = {};
-            cr.transactions.forEach((tx: any) => {
-              const m = tx.paymentMethod || "CASH";
-              if (!byMethod[m]) byMethod[m] = { in: 0, out: 0 };
-              if (tx.type === "IN") byMethod[m].in += tx.amount;
-              else byMethod[m].out += tx.amount;
-            });
-            const methodEmojis: Record<string, string> = {
-              CASH: "💵", WAVE: "🔵", ORANGE_MONEY: "🟠", FREE_MONEY: "🟣", BANK: "🏦", OTHER: "📱"
-            };
-            const methodNames: Record<string, string> = {
-              CASH: "Espèces", WAVE: "Wave", ORANGE_MONEY: "Orange Money",
-              FREE_MONEY: "Free Money", BANK: "Virement", OTHER: "Autre"
-            };
-            const entries = Object.entries(byMethod);
-            return (
-              <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <h3 className="mb-4 text-lg font-bold text-slate-900">💳 Répartition par moyen de paiement</h3>
-                <div className="space-y-3">
-                  {entries.map(([method, amounts]) => (
-                    <div key={method} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{methodEmojis[method] || "📱"}</span>
-                        <div>
-                          <p className="font-semibold text-slate-800">{methodNames[method] || method}</p>
-                          <p className="text-xs text-gray-400">
-                            +{fmt(amounts.in)} encaissé
-                            {amounts.out > 0 && ` • -${fmt(amounts.out)} décaissé`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-emerald-700 text-lg">{fmt(amounts.in)}</p>
-                        {amounts.out > 0 && <p className="text-xs text-red-500">-{fmt(amounts.out)}</p>}
-                      </div>
-                    </div>
-                  ))}
-                  {/* Total */}
-                  <div className="flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-white mt-2">
-                    <span className="font-semibold">Total encaissé</span>
-                    <span className="font-bold text-lg">{fmt(cr.totalIn)}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })() : null}
-
-          {/* Transactions du jour */}
+          {/* ── Transactions du jour ─────────────────────── */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-bold text-slate-900">Transactions du jour</h3>
+            <h3 className="mb-4 text-base font-bold text-slate-900">Transactions du jour</h3>
             {!cr?.transactions?.length ? (
               <p className="text-sm text-gray-400">Aucune transaction pour le moment.</p>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {cr.transactions.map((tx: CashTransaction) => (
-                  <div key={tx.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`rounded-full p-1.5 ${tx.type === "IN" ? "bg-emerald-100" : "bg-red-100"}`}>
-                        {tx.type === "IN"
-                          ? <TrendingUp size={13} className="text-emerald-600" />
-                          : <TrendingDown size={13} className="text-red-600" />}
+                {cr.transactions.map((tx: CashTransaction) => {
+                  const method = (tx as any).paymentMethod || "CASH";
+                  const config = METHOD_CONFIG[method] || METHOD_CONFIG.OTHER;
+                  return (
+                    <div key={tx.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`rounded-full p-1.5 ${tx.type === "IN" ? "bg-emerald-100" : "bg-red-100"}`}>
+                          {tx.type === "IN"
+                            ? <TrendingUp size={13} className="text-emerald-600" />
+                            : <TrendingDown size={13} className="text-red-600" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{tx.label}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <img src={config.logo} alt={config.name}
+                              className="h-4 w-4 rounded object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                            <p className="text-xs text-gray-400">{config.name} • {new Date(tx.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{tx.label}</p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(tx.createdAt).toLocaleTimeString("fr-FR")} •{" "}
-                          {PAYMENT_METHOD_LABELS[(tx as any).paymentMethod || "CASH"]}
-                        </p>
-                      </div>
+                      <span className={`text-sm font-bold ${tx.type === "IN" ? "text-emerald-600" : "text-red-600"}`}>
+                        {tx.type === "IN" ? "+" : "-"}{fmt(tx.amount)}
+                      </span>
                     </div>
-                    <span className={`text-sm font-bold ${tx.type === "IN" ? "text-emerald-600" : "text-red-600"}`}>
-                      {tx.type === "IN" ? "+" : "-"}{fmt(tx.amount)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -408,7 +450,6 @@ export default function Cash() {
           <div className="space-y-3">
             {history.map((session) => (
               <div key={session.id} className="rounded-2xl border border-gray-200 overflow-hidden">
-                {/* En-tête session */}
                 <div
                   className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 transition"
                   onClick={() => loadSessionDetail(session.id)}
@@ -428,8 +469,7 @@ export default function Cash() {
                       {(session as any).user?.name && ` • ${(session as any).user.name}`}
                     </p>
                   </div>
-
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
                     <div className="text-right text-sm">
                       <p className="text-gray-400 text-xs">Ouverture</p>
                       <p className="font-medium">{fmt(session.openingAmount)}</p>
@@ -454,50 +494,79 @@ export default function Cash() {
                         if (sessionDetail[session.id]) {
                           exportCashReportPDF(sessionDetail[session.id], user?.shopName || "Boutique");
                         } else {
-                          loadSessionDetail(session.id).then(() => {
-                            // Le détail sera chargé, l'utilisateur peut recliquer
-                          });
-                          toast("Cliquez à nouveau pour télécharger après chargement", { icon: "ℹ️", duration: 3000 });
+                          loadSessionDetail(session.id);
+                          toast("Cliquez à nouveau pour télécharger", { icon: "ℹ️", duration: 3000 });
                         }
                       }}
-                      className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition"
-                    >
+                      className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition">
                       <Download size={12} /> PDF
                     </button>
-                  {expandedSession === session.id
+                    {expandedSession === session.id
                       ? <ChevronUp size={18} className="text-gray-400" />
                       : <ChevronDown size={18} className="text-gray-400" />}
                   </div>
                 </div>
 
-                {/* Détail transactions */}
                 {expandedSession === session.id && sessionDetail[session.id] && (
                   <div className="border-t bg-slate-50 px-5 py-4">
-                    <p className="text-xs font-semibold uppercase text-gray-400 mb-3">
-                      Détail des transactions ({sessionDetail[session.id].transactions?.length || 0})
+                    {/* Répartition par moyen dans l'historique */}
+                    {sessionDetail[session.id].transactions?.length ? (
+                      <div className="mb-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Par moyen de paiement</p>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {getMethodBreakdown(sessionDetail[session.id].transactions!)
+                            .filter((m) => m.totalIn > 0)
+                            .map((m) => (
+                              <div key={m.method} className={`flex items-center gap-3 rounded-xl p-3 ${m.config.bg}`}>
+                                <img src={m.config.logo} alt={m.config.name}
+                                  className="h-8 w-8 rounded-lg object-cover bg-white p-0.5 shadow-sm flex-shrink-0"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                <div>
+                                  <p className={`text-xs font-semibold ${m.config.text}`}>{m.config.name}</p>
+                                  <p className={`text-sm font-bold ${m.config.text}`}>{fmt(m.totalIn)}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                      Transactions ({sessionDetail[session.id].transactions?.length || 0})
                     </p>
                     {!sessionDetail[session.id].transactions?.length ? (
-                      <p className="text-sm text-gray-400">Aucune transaction enregistrée.</p>
+                      <p className="text-sm text-gray-400">Aucune transaction.</p>
                     ) : (
                       <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {sessionDetail[session.id].transactions?.map((tx: CashTransaction) => (
-                          <div key={tx.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5">
-                            <div className="flex items-center gap-3">
-                              <div className={`rounded-full p-1 ${tx.type === "IN" ? "bg-emerald-100" : "bg-red-100"}`}>
-                                {tx.type === "IN"
-                                  ? <TrendingUp size={12} className="text-emerald-600" />
-                                  : <TrendingDown size={12} className="text-red-600" />}
+                        {sessionDetail[session.id].transactions?.map((tx: CashTransaction) => {
+                          const method = (tx as any).paymentMethod || "CASH";
+                          const config = METHOD_CONFIG[method] || METHOD_CONFIG.OTHER;
+                          return (
+                            <div key={tx.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className={`rounded-full p-1 ${tx.type === "IN" ? "bg-emerald-100" : "bg-red-100"}`}>
+                                  {tx.type === "IN"
+                                    ? <TrendingUp size={12} className="text-emerald-600" />
+                                    : <TrendingDown size={12} className="text-red-600" />}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-slate-800">{tx.label}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <img src={config.logo} alt={config.name}
+                                      className="h-3 w-3 rounded object-cover"
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                    <p className="text-xs text-gray-400">{config.name} • {new Date(tx.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                                  </div>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs font-medium text-slate-800">{tx.label}</p>
-                                <p className="text-xs text-gray-400">{new Date(tx.createdAt).toLocaleTimeString("fr-FR")}</p>
-                              </div>
+                              <span className={`text-xs font-bold ${tx.type === "IN" ? "text-emerald-600" : "text-red-600"}`}>
+                                {tx.type === "IN" ? "+" : "-"}{fmt(tx.amount)}
+                              </span>
                             </div>
-                            <span className={`text-xs font-bold ${tx.type === "IN" ? "text-emerald-600" : "text-red-600"}`}>
-                              {tx.type === "IN" ? "+" : "-"}{fmt(tx.amount)}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -507,7 +576,6 @@ export default function Cash() {
           </div>
         )}
 
-        {/* Pagination historique */}
         {historyTotalPages > 1 && (
           <div className="mt-4 flex items-center justify-center gap-3">
             <button onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1}
