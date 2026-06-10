@@ -312,6 +312,55 @@ export default function Cash() {
             </div>
           )}
 
+          {/* Répartition par moyen de paiement */}
+          {cr?.transactions?.length ? (() => {
+            const byMethod: Record<string, { in: number; out: number }> = {};
+            cr.transactions.forEach((tx: any) => {
+              const m = tx.paymentMethod || "CASH";
+              if (!byMethod[m]) byMethod[m] = { in: 0, out: 0 };
+              if (tx.type === "IN") byMethod[m].in += tx.amount;
+              else byMethod[m].out += tx.amount;
+            });
+            const methodEmojis: Record<string, string> = {
+              CASH: "💵", WAVE: "🔵", ORANGE_MONEY: "🟠", FREE_MONEY: "🟣", BANK: "🏦", OTHER: "📱"
+            };
+            const methodNames: Record<string, string> = {
+              CASH: "Espèces", WAVE: "Wave", ORANGE_MONEY: "Orange Money",
+              FREE_MONEY: "Free Money", BANK: "Virement", OTHER: "Autre"
+            };
+            const entries = Object.entries(byMethod);
+            return (
+              <div className="rounded-2xl bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-lg font-bold text-slate-900">💳 Répartition par moyen de paiement</h3>
+                <div className="space-y-3">
+                  {entries.map(([method, amounts]) => (
+                    <div key={method} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{methodEmojis[method] || "📱"}</span>
+                        <div>
+                          <p className="font-semibold text-slate-800">{methodNames[method] || method}</p>
+                          <p className="text-xs text-gray-400">
+                            +{fmt(amounts.in)} encaissé
+                            {amounts.out > 0 && ` • -${fmt(amounts.out)} décaissé`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-emerald-700 text-lg">{fmt(amounts.in)}</p>
+                        {amounts.out > 0 && <p className="text-xs text-red-500">-{fmt(amounts.out)}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  {/* Total */}
+                  <div className="flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-white mt-2">
+                    <span className="font-semibold">Total encaissé</span>
+                    <span className="font-bold text-lg">{fmt(cr.totalIn)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })() : null}
+
           {/* Transactions du jour */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-bold text-slate-900">Transactions du jour</h3>
