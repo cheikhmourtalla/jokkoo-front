@@ -4,7 +4,7 @@ import { Wallet, TrendingUp, TrendingDown, X, ChevronDown, ChevronUp } from "luc
 import { getCurrentCash, openCash, closeCash, addCashTransaction, getCashHistory, getCashById } from "../services/index";
 import { exportCashReportPDF } from "../utils/exportPDF";
 import { Download } from "lucide-react";
-import PaymentMethodSelect, { PAYMENT_METHOD_LABELS } from "../components/PaymentMethodSelect";
+import PaymentMethodSelect, { PAYMENT_METHOD_LABELS } from "../components/Paymentmethodselect";
 import type { CashRegister, CashTransaction } from "../types/index";
 import { getStoredUser } from "../types/auth";
 
