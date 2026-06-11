@@ -446,7 +446,7 @@ export default function Sales() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Ou nom libre</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Ou Client Passager...</label>
               <input type="text" value={customerName} onChange={(e) => { setCustomerName(e.target.value); if (e.target.value) setClientId(""); }}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-500"
                 placeholder="Nom du client..." disabled={!!clientId} />
