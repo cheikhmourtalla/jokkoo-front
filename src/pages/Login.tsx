@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { login } from "../services/index";
-import logo from "../assets/logo.svg";
+import logo from "../assets/logooo.svg";
 
 export default function Login() {
   const navigate = useNavigate();

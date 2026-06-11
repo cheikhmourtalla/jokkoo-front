@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { getProducts } from "../services/index";
 
 type StockAlert = {
   id: number;
@@ -14,6 +15,8 @@ type NotificationState = {
   lastUpdate: Date | null;
 };
 
+const API_URL = import.meta.env.VITE_API_URL || "https://jokko-back.onrender.com/api";
+
 export function useNotifications() {
   const [alerts, setAlerts] = useState<NotificationState>({
     lowStock: [],
@@ -25,18 +28,44 @@ export function useNotifications() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Chargement initial : calcule les alertes depuis la liste actuelle des produits
+  const loadInitialAlerts = useCallback(async () => {
+    try {
+      const res = await getProducts({ limit: 1000 });
+      const products = res.data || [];
+
+      const lowStock: StockAlert[] = [];
+      const outOfStock: StockAlert[] = [];
+
+      products.forEach((p: any) => {
+        if (!p.isActive) return;
+        if (p.quantity === 0) {
+          outOfStock.push({ id: p.id, name: p.name, quantity: p.quantity, alertThreshold: p.alertThreshold });
+        } else if (p.quantity > 0 && p.quantity <= (p.alertThreshold ?? 5)) {
+          lowStock.push({ id: p.id, name: p.name, quantity: p.quantity, alertThreshold: p.alertThreshold });
+        }
+      });
+
+      setAlerts({
+        lowStock,
+        outOfStock,
+        total: lowStock.length + outOfStock.length,
+        lastUpdate: new Date(),
+      });
+    } catch (e) {
+      console.error("Erreur chargement alertes initiales", e);
+    }
+  }, []);
+
   const connect = useCallback(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    // Fermer la connexion précédente si elle existe
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
-    const url = `http://localhost:5000/api/notifications/stream`;
-
-    // EventSource ne supporte pas les headers — on passe le token en query param
+    const url = `${API_URL}/notifications/stream`;
     const es = new EventSource(`${url}?token=${token}`);
     eventSourceRef.current = es;
 
@@ -57,7 +86,6 @@ export function useNotifications() {
     es.onerror = () => {
       setConnected(false);
       es.close();
-      // Reconnexion automatique après 5 secondes
       reconnectTimerRef.current = setTimeout(() => {
         connect();
       }, 5000);
@@ -65,12 +93,13 @@ export function useNotifications() {
   }, []);
 
   useEffect(() => {
+    loadInitialAlerts();
     connect();
     return () => {
       eventSourceRef.current?.close();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
     };
-  }, [connect]);
+  }, [connect, loadInitialAlerts]);
 
   return { alerts, connected };
 }
