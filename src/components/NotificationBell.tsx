@@ -44,7 +44,7 @@ export default function NotificationBell() {
 
       {/* Panel notifications */}
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-80 rounded-2xl bg-white shadow-xl border border-gray-200 overflow-hidden">
+        <div className="fixed inset-x-4 top-20 z-50 mx-auto max-w-sm rounded-2xl bg-white shadow-xl border border-gray-200 overflow-hidden sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:mx-0 sm:w-80">
           {/* Header panel */}
           <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
             <div className="flex items-center gap-2">
